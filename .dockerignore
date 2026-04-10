@@ -1,0 +1,9 @@
+.git
+.gitignore
+__pycache__
+*.pyc
+venv/
+.env
+.vscode
+.DS_Store
+inspect_rembg.py

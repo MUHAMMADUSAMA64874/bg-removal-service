@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Background Removal Tester</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f5f7fb; color: #202020; margin: 0; padding: 20px; }
+    .container { max-width: 900px; margin: 0 auto; background: #fff; padding: 24px; border-radius: 12px; box-shadow: 0 18px 40px rgba(32,33,36,0.08); }
+    h1 { margin-top: 0; }
+    label { display: block; margin-top: 16px; font-weight: 600; }
+    input[type=file], input[type=text] { width: 100%; padding: 10px 12px; font-size: 1rem; border: 1px solid #d1d7e0; border-radius: 8px; }
+    button { margin-top: 20px; padding: 12px 20px; font-size: 1rem; background: #3366ff; color: white; border: none; border-radius: 8px; cursor: pointer; }
+    button:disabled { background: #9aa7d2; cursor: not-allowed; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 24px; }
+    .preview { border: 1px solid #e1e5eb; padding: 14px; border-radius: 10px; background: #fafbff; text-align: center; }
+    .preview img { max-width: 100%; height: auto; border-radius: 8px; }
+    .status { margin-top: 16px; padding: 14px; background: #eef2ff; border: 1px solid #d7defd; border-radius: 10px; }
+    .hint { color: #5f6f8a; font-size: 0.95rem; }
+    .footer { margin-top: 30px; font-size: 0.92rem; color: #5b667f; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Background Removal Tester</h1>
+    <p>Upload an image and test the local background removal endpoint.</p>
+
+    <label for="fileInput">Image file</label>
+    <input id="fileInput" type="file" accept="image/*" />
+
+    <label for="tokenInput">Auth token</label>
+    <input id="tokenInput" type="text" value="your-secret-token" />
+    <div class="hint">Use the same token configured in the service or set via <code>AUTH_TOKEN</code>.</div>
+
+    <button id="submitButton">Remove Background</button>
+
+    <div class="status" id="status">Ready to test.</div>
+
+    <div class="row">
+      <div class="preview">
+        <h2>Original</h2>
+        <img id="originalImage" alt="Original preview" />
+      </div>
+      <div class="preview">
+        <h2>Result</h2>
+        <img id="resultImage" alt="Result preview" />
+      </div>
+    </div>
+
+    <div class="footer">
+      <p>Endpoint: <code>/remove-bg</code></p>
+      <p>If you deploy the service, change the fetch URL in the script to your deployed host.</p>
+    </div>
+  </div>
+
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const tokenInput = document.getElementById('tokenInput');
+    const submitButton = document.getElementById('submitButton');
+    const status = document.getElementById('status');
+    const originalImage = document.getElementById('originalImage');
+    const resultImage = document.getElementById('resultImage');
+
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files[0];
+      if (!file) {
+        originalImage.src = '';
+        return;
+      }
+      originalImage.src = URL.createObjectURL(file);
+    });
+
+    submitButton.addEventListener('click', async () => {
+      const file = fileInput.files[0];
+      const token = tokenInput.value.trim();
+      if (!file) {
+        status.textContent = 'Please select an image file first.';
+        return;
+      }
+      if (!token) {
+        status.textContent = 'Please enter the auth token.';
+        return;
+      }
+
+      submitButton.disabled = true;
+      status.textContent = 'Uploading image and processing...';
+      resultImage.src = '';
+
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('token', token);
+
+        const response = await fetch('/remove-bg', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + token
+          },
+          body: formData
+        });
+
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(response.status + ' ' + (text || response.statusText));
+        }
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        resultImage.src = url;
+        const processingTime = response.headers.get('Processing-Time') || 'unknown';
+        status.textContent = `Finished successfully. Processing time: ${processingTime}`;
+      } catch (error) {
+        status.textContent = 'Error: ' + error.message;
+      } finally {
+        submitButton.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
